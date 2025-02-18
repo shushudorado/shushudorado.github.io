@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Pose Color Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #colorText {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <canvas id="overlay"></canvas>
+    <div id="colorText">Color: Detecting...</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const overlay = document.getElementById('overlay');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const overlayCtx = overlay.getContext('2d');
+
+        let colorData = [];
+
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+            video.srcObject = stream;
+            return new Promise(resolve => video.onloadedmetadata = () => resolve());
+        }
+
+        async function fetchColors() {
+            const response = await fetch('colors.json');
+            colorData = await response.json();
+        }
+
+        function findClosestColor(r, g, b) {
+            let closestColor = null;
+            let smallestDistance = Infinity;
+
+            colorData.forEach(color => {
+                const cr = color["rgb"].r;
+                const cg = color["rgb"].g;
+                const cb = color["rgb"].b;
+
+                const distance = Math.sqrt(
+                    (r - cr) ** 2 +
+                    (g - cg) ** 2 +
+                    (b - cb) ** 2
+                );
+
+                if (distance < smallestDistance) {
+                    smallestDistance = distance;
+                    closestColor = color;
+                }
+            });
+
+            if (closestColor) {
+                return `${closestColor["color_name"]} (${closestColor["reading"]})`;
+            } else {
+                return "Unknown";
+            }
+        }
+
+        function detectColor(x, y) {
+            const frame = ctx.getImageData(x, y, 1, 1).data;
+            const color = `rgb(${frame[0]}, ${frame[1]}, ${frame[2]})`;
+            const colorName = findClosestColor(frame[0], frame[1], frame[2]);
+            document.getElementById('colorText').innerText = `Color: ${color} (${colorName})`;
+            return color;
+        }
+
+        async function setupHandTracking() {
+            const hands = new Hands({
+                locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            hands.onResults(results => {
+                overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+                if (results.multiHandLandmarks) {
+                    for (const landmarks of results.multiHandLandmarks) {
+                        const indexFingerTip = landmarks[8];
+                        const indexFingerBase = landmarks[5];
+                        const dx = indexFingerTip.x - indexFingerBase.x;
+                        const dy = indexFingerTip.y - indexFingerBase.y;
+                        const length = Math.sqrt(dx * dx + dy * dy);
+                        const ux = dx / length;
+                        const uy = dy / length;
+                        const x = (indexFingerTip.x + ux * 0.06) * canvas.width;
+                        const y = (indexFingerTip.y + uy * 0.06) * canvas.height;
+                        const detectedColor = detectColor(x, y);
+                        overlayCtx.fillStyle = detectedColor;
+                        overlayCtx.strokeStyle = 'black';
+                        overlayCtx.lineWidth = 2;
+                        overlayCtx.beginPath();
+                        overlayCtx.arc(x, y, 10, 0, 2 * Math.PI);
+                        overlayCtx.fill();
+                        overlayCtx.stroke();
+                    }
+                }
+            });
+            const camera = new Camera(video, {
+                onFrame: async () => {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    await hands.send({ image: video });
+                },
+                width: 640,
+                height: 480
+            });
+            camera.start();
+        }
+
+        (async () => {
+            await fetchColors();
+            await setupCamera();
+            canvas.width = overlay.width = video.videoWidth;
+            canvas.height = overlay.height = video.videoHeight;
+            setupHandTracking();
+        })();
+    </script>
+</body>
+
+</html>
