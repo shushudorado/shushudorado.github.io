@@ -60,7 +60,7 @@
         let colorData = [];
 
         async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
             video.srcObject = stream;
             return new Promise(resolve => video.onloadedmetadata = () => resolve());
         }
