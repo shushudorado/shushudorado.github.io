@@ -175,7 +175,7 @@
             await setupCamera();
             canvas.width = overlay.width = video.videoWidth;
             canvas.height = overlay.height = video.videoHeight;
-            setupHandTracking();
+            await setupHandTracking();
         })();
     </script>
 </body>
