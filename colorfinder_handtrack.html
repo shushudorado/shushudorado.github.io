@@ -79,16 +79,28 @@
 
         let useFrontCamera = false; 
         let stream = null;
+        let videoDevices = [];
+        let currentDeviceIndex = 0;
         let colorData = [];
+
+        async function getCameras() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            videoDevices = devices.filter(device => device.kind === 'videoinput');
+        }
 
         async function setupCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop()); // 前のカメラを停止
             }
 
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: useFrontCamera ? "user" : "environment" }
-            });
+            let constraints = {
+                video: {
+                    deviceId: videoDevices.length > 0 ? { exact: videoDevices[currentDeviceIndex].deviceId } : undefined,
+                    facingMode: useFrontCamera ? "user" : "environment"
+                }
+            };
+
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
 
             video.srcObject = stream;
             return new Promise((resolve) => {
@@ -203,12 +215,17 @@
         }
 
         document.getElementById('switchCamera').addEventListener('click', async () => {
-            useFrontCamera = !useFrontCamera; // 内カメ・外カメを切り替える
+            if (videoDevices.length > 1) {
+                currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+            } else {
+                useFrontCamera = !useFrontCamera; // 内カメ・外カメを切り替える
+            }
             await setupCamera();
         });
 
         (async () => {
             await fetchColors();
+            await setupCamera();
             await setupCamera();
             await setupHandTracking();
         })();
