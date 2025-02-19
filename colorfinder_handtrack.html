@@ -172,7 +172,7 @@
                         const dx = thumbTip.x - middleFingerTip.x;
                         const dy = thumbTip.y - middleFingerTip.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        const threshold = 0.02; // 接触と判定する距離の閾値
+                        const threshold = 0.05; // 接触と判定する距離の閾値
 
                         const indexFingerTip = landmarks[8];
                         const indexFingerBase = landmarks[5];
