@@ -62,7 +62,7 @@
         async function setupCamera() {
             const video = document.getElementById('video');
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: { ideal: "environment" } }
+                video: { facingMode: "environment" }
             });
             video.srcObject = stream;
             return new Promise((resolve) => {
@@ -122,11 +122,11 @@
                 if (results.multiHandLandmarks) {
                     for (const landmarks of results.multiHandLandmarks) {
                         const thumbTip = landmarks[4];   // 親指の先端
-                        const littleFingerTip = landmarks[16]; // 小指の先端
+                        const middleFingerTip = landmarks[12]; // 中指の先端
 
                         // 2点間の距離を計算
-                        const dx = thumbTip.x - littleFingerTip.x;
-                        const dy = thumbTip.y - littleFingerTip.y;
+                        const dx = thumbTip.x - middleFingerTip.x;
+                        const dy = thumbTip.y - middleFingerTip.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         const threshold = 0.05; // 接触と判定する距離の閾値
 
@@ -164,8 +164,8 @@
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     await hands.send({ image: video });
                 },
-                width: 640,
-                height: 480
+                width: video.videoWidth || 640,
+                height: video.videoHeight || 480
             });
             camera.start();
         }
