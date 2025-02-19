@@ -49,6 +49,7 @@
     <canvas id="canvas"></canvas>
     <canvas id="overlay"></canvas>
     <div id="colorText">Color: Detecting...</div>
+    <button id="switchCamera" style="position: absolute; top: 10px; right: 10px; z-index: 10;">カメラ切替</button>
 
     <script>
         const video = document.getElementById('video');
@@ -57,16 +58,26 @@
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const overlayCtx = overlay.getContext('2d');
 
+        let useFrontCamera = false; 
+        let stream = null;
         let colorData = [];
 
         async function setupCamera() {
-            const video = document.getElementById('video');
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" }
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop()); // 前のカメラを停止
+            }
+
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: useFrontCamera ? "user" : "environment" }
             });
+
             video.srcObject = stream;
             return new Promise((resolve) => {
-                video.onloadedmetadata = () => resolve();
+                video.onloadedmetadata = () => {
+                    canvas.width = overlay.width = video.videoWidth;
+                    canvas.height = overlay.height = video.videoHeight;
+                    resolve();
+                };
             });
         }
 
@@ -170,11 +181,14 @@
             camera.start();
         }
 
+        document.getElementById('switchCamera').addEventListener('click', async () => {
+            useFrontCamera = !useFrontCamera; // 内カメ・外カメを切り替える
+            await setupCamera();
+        });
+
         (async () => {
             await fetchColors();
             await setupCamera();
-            canvas.width = overlay.width = video.videoWidth;
-            canvas.height = overlay.height = video.videoHeight;
             await setupHandTracking();
         })();
     </script>
