@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho&display=swap" rel="stylesheet">
+
     <style>
         body {
             margin: 0;
@@ -37,7 +38,7 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            width: 80%;
+            width: 60%;
             max-width: 600px;
             text-align: center;
             display: block;
@@ -66,6 +67,15 @@
         #switchCamera:hover {
             background: rgba(0, 0, 0, 0.9);
         }
+
+        #particlesCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -73,6 +83,7 @@
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
     <canvas id="overlay"></canvas>
+    <canvas id="particlesCanvas"></canvas>
     <div id="colorText">Color: Detecting...</div>
     <button id="switchCamera">カメラ切替</button>
 
@@ -80,14 +91,18 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const overlay = document.getElementById('overlay');
+        const particlesCanvas = document.getElementById('particlesCanvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const overlayCtx = overlay.getContext('2d');
+        const particlesCtx = particlesCanvas.getContext('2d');
 
         let useFrontCamera = false; 
         let stream = null;
         let videoDevices = [];
         let currentDeviceIndex = 0;
         let colorData = [];
+        let particles = [];
+        let animationRunning = false;
 
         async function getCameras() {
             const devices = await navigator.mediaDevices.enumerateDevices();
@@ -113,12 +128,60 @@
                 video.onloadedmetadata = () => {
                     const aspectRatio = video.videoWidth / video.videoHeight;
                     video.style.aspectRatio = aspectRatio;
-                    canvas.width = overlay.width = video.videoWidth;
-                    canvas.height = overlay.height = video.videoHeight;
+                    canvas.width = overlay.width = particlesCanvas.width = video.videoWidth;
+                    canvas.height = overlay.height = particlesCanvas.height = video.videoHeight;
                     resolve();
                 };
             });
         }
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    radius: Math.random() * 5 + 2,
+                    alpha: 1,
+                    speedX: (Math.random() - 0.5) * 6,
+                    speedY: (Math.random() - 0.5) * 6,
+                    color: color  // ここで色を保存
+                });
+            }
+
+            if (!animationRunning) {
+                animationRunning = true;
+                updateParticles();
+            }
+        }
+
+
+        // パーティクルを更新・描画する関数
+        function updateParticles() {
+            if (particles.length === 0) {
+                animationRunning = false;
+                return;
+            }
+
+            particlesCtx.clearRect(0, 0, particlesCanvas.width, particlesCanvas.height);
+
+            particles.forEach((p, index) => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.alpha -= 0.03;
+
+                particlesCtx.beginPath();
+                particlesCtx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI);
+                particlesCtx.fillStyle = `rgba(${p.color.match(/\d+/g).join(', ')}, ${p.alpha})`;
+                particlesCtx.fill();
+
+                if (p.alpha <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+
+            requestAnimationFrame(updateParticles);
+        }
+
 
         async function fetchColors() {
             const response = await fetch('colors.json');
@@ -194,7 +257,8 @@
                         
                         if (distance < threshold) {
                             const color = detectedColor.color;
-                            const colorName = detectedColor.colorName; 
+                            const colorName = detectedColor.colorName;
+                            createParticles(x, y, color); 
                             document.getElementById('colorText').innerText = `Color:${colorName}\n${color}`;
                         }
                         
@@ -231,6 +295,7 @@
 
         (async () => {
             await fetchColors();
+            await getCameras();
             await setupCamera();
             await setupHandTracking();
         })();
