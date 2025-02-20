@@ -105,8 +105,8 @@
             video.srcObject = stream;
             return new Promise((resolve) => {
                 video.onloadedmetadata = () => {
-                    const aspectRatio = video.videoWidth / video.videoHeight;
-                    video.style.aspectRatio = aspectRatio;
+                    //const aspectRatio = video.videoWidth / video.videoHeight;
+                    //video.style.aspectRatio = aspectRatio;
                     canvas.width = overlay.width = video.videoWidth;
                     canvas.height = overlay.height = video.videoHeight;
                     resolve();
