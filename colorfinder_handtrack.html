@@ -27,10 +27,8 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: auto;
+            height: 100%;
             object-fit: cover;
-            aspect-ratio: 16 / 9;
-            max-height: 100vh;
         }
 
         #colorText {
@@ -38,7 +36,7 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 16px;
+            font-size: 24px;
             background: rgba(0, 0, 0, 0.5);
             padding: 10px 20px;
             border-radius: 10px;
@@ -85,6 +83,11 @@
         let currentDeviceIndex = 0;
         let colorData = [];
 
+        async function getCameras() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            videoDevices = devices.filter(device => device.kind === 'videoinput');
+        }
+
         async function setupCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop()); // 前のカメラを停止
@@ -98,23 +101,18 @@
             };
 
             stream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = stream;
 
+            video.srcObject = stream;
             return new Promise((resolve) => {
                 video.onloadedmetadata = () => {
-                    setTimeout(() => { // 遅延を入れて正しいサイズを取得
-                        const aspectRatio = video.videoWidth / video.videoHeight;
-                        video.style.width = "100%";
-                        video.style.height = "auto";
-                        video.style.aspectRatio = aspectRatio;
-                        canvas.width = overlay.width = video.videoWidth;
-                        canvas.height = overlay.height = video.videoHeight;
-                        resolve();
-                    }, 100); // 100ms遅延を入れる
+                    const aspectRatio = video.videoWidth / video.videoHeight;
+                    video.style.aspectRatio = aspectRatio;
+                    canvas.width = overlay.width = video.videoWidth;
+                    canvas.height = overlay.height = video.videoHeight;
+                    resolve();
                 };
             });
         }
-
 
         async function fetchColors() {
             const response = await fetch('colors.json');
@@ -235,3 +233,4 @@
 </body>
 
 </html>
+
