@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hand Pose Color Detection</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho&display=swap" rel="stylesheet">
@@ -213,12 +212,32 @@
         }
 
         function detectColor(x, y) {
-            const frame = ctx.getImageData(x, y, 1, 1).data;
-            const color = `rgb(${frame[0]}, ${frame[1]}, ${frame[2]})`;
-            const colorName = findClosestColor(frame[0], frame[1], frame[2]);
-            //document.getElementById('colorText').innerText = `Color: ${color} (${colorName})`;
+            const radius = 20; // 20pxの半径
+            const imageData = ctx.getImageData(x - radius, y - radius, radius * 2, radius * 2);
+            const data = imageData.data;
+            
+            let r = 0, g = 0, b = 0;
+            let count = 0;
+
+            // 色の合計を求める
+            for (let i = 0; i < data.length; i += 4) {
+                r += data[i];     // Red
+                g += data[i + 1]; // Green
+                b += data[i + 2]; // Blue
+                count++;
+            }
+
+            // 平均色を計算
+            r = Math.floor(r / count);
+            g = Math.floor(g / count);
+            b = Math.floor(b / count);
+
+            const color = `rgb(${r}, ${g}, ${b})`;
+            const colorName = findClosestColor(r, g, b);
+
             return {color, colorName};
         }
+
 
         async function setupHandTracking() {
             const hands = new Hands({
@@ -303,3 +322,4 @@
 </body>
 
 </html>
+
